@@ -1,0 +1,6 @@
+bin/
+*.o
+*.dSYM/
+results/states/
+.DS_Store
+.vscode/
