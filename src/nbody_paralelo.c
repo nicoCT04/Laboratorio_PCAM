@@ -1,22 +1,25 @@
 /*
  * nbody_paralelo.c
- * versiones paralelas de la simulación n-body 2d con openmp.
+ * Versiones paralelas con OpenMP de la simulación gravitacional N-Body 2D.
  *
- *   --mode parallel   (B) cada hilo calcula filas completas i, igual que la
- *                     secuencial. da el mismo resultado bit a bit.
- *   --mode optimized  (C) cada par (i, j) con i < j se calcula una sola vez
- *                     (tercera ley de newton). la carrera sobre ax[j] se evita
- *                     con acumuladores privados por hilo + reducción.
- *   --mode atomic     lo mismo que C pero sumando con omp atomic, solo para
- *                     comparar tiempos contra los acumuladores privados.
+ * Integrantes: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
  *
- * compilar:  make
- * uso:       ./bin/nbody_paralelo [N] [steps] --mode parallel|optimized|atomic
+ *   --mode parallel   (B) Cada hilo calcula filas completas i, igual que la
+ *                     versión secuencial. Da el mismo resultado bit a bit.
+ *   --mode optimized  (C) Cada par (i, j) con i < j se calcula una sola vez
+ *                     (tercera ley de Newton). La condición de carrera sobre
+ *                     ax[j] se evita con acumuladores privados por hilo y una
+ *                     reducción posterior, sin sincronización en el ciclo.
+ *   --mode atomic     Igual que C, pero sumando con omp atomic. Solo sirve
+ *                     para comparar tiempos contra los acumuladores privados.
+ *
+ * Compilar:  make
+ * Uso:       ./bin/nbody_paralelo [N] [steps] --mode parallel|optimized|atomic
  *                                 --threads T --schedule static|dynamic|guided
  *                                 --chunk C --out archivo
  *
- * init, lcg, constantes, checksum y write_state son copia exacta de
- * nbody_secuencial.c para que los resultados se puedan comparar.
+ * init_bodies, el LCG, las constantes, checksum y write_state son copia exacta
+ * de nbody_secuencial.c para que los resultados se puedan comparar.
  */
 
 #include <errno.h>
@@ -29,7 +32,7 @@
 #include <string.h>
 
 #ifndef STUDENT
-#define STUDENT "Diego"
+#define STUDENT "Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)"
 #endif
 
 #define SEED 42
@@ -96,7 +99,7 @@ static int write_state(const char *path, const Body *b, int n) {
     return 0;
 }
 
-/* ---------- configuración y argumentos ---------- */
+/* ---------- Configuración y argumentos ---------- */
 
 enum { MODE_PARALLEL, MODE_OPTIMIZED, MODE_ATOMIC, N_MODES };
 
@@ -114,11 +117,11 @@ typedef struct {
     int mode;    /* índice en MODE_ARGS */
     int threads;
     int sched;   /* índice en SCHED_NAMES */
-    int chunk;   /* 0 = default de openmp */
+    int chunk;   /* 0 = valor por defecto de OpenMP */
     const char *out_path;
 } Config;
 
-/* strtol con chequeo de basura y rangos, atoi se traga cualquier cosa */
+/* strtol validando caracteres sobrantes y rango (atoi acepta cualquier cosa) */
 static int parse_int(const char *s, int min, int *out) {
     char *end;
     errno = 0;
@@ -134,7 +137,8 @@ static int find_name(const char *s, const char *const *names, int count) {
     return -1;
 }
 
-/* 0 = ok, 1 = pidió ayuda, -1 = argumento malo */
+/* Devuelve 0 si todo está bien, 1 si se pidió ayuda y -1 si hay un
+ * argumento inválido */
 static int parse_args(int argc, char **argv, Config *cfg) {
     int positional = 0;
     for (int k = 1; k < argc; k++) {
@@ -186,9 +190,9 @@ static void usage(const char *prog) {
             prog);
 }
 
-/* ---------- simulación ---------- */
+/* ---------- Simulación ---------- */
 
-/* euler semi-implícito, misma fórmula que update_bodies de la secuencial */
+/* Euler semiimplícito: misma fórmula que update_bodies de la secuencial */
 static inline void integrate_body(Body *bi, double axi, double ayi) {
     bi->vx += axi * DT;
     bi->vy += ayi * DT;
@@ -196,7 +200,7 @@ static inline void integrate_body(Body *bi, double axi, double ayi) {
     bi->y += bi->vy * DT;
 }
 
-/* g / r^3 del par, lo comparten las dos versiones por pares */
+/* G / r^3 del par (i, j); lo comparten las dos versiones por pares */
 static inline double pair_factor(double dx, double dy) {
     double r2 = dx * dx + dy * dy + EPS2;
     double inv_r = 1.0 / sqrt(r2);
@@ -204,17 +208,19 @@ static inline double pair_factor(double dx, double dy) {
 }
 
 /*
- * versión B. las funciones step_* se llaman dentro de la región paralela,
- * así que los omp for de aquí se reparten entre los hilos de ese equipo.
+ * Versión B. Las funciones step_* se llaman dentro de la región paralela, así
+ * que cada omp for reparte sus iteraciones entre los hilos de ese equipo
+ * (worksharing huérfano).
  */
 static void step_direct(Body *b, double *ax, double *ay, int n) {
-    /* fuerzas: cada hilo agarra filas i enteras según el schedule de runtime.
-     * b solo se lee y ax[i], ay[i] solo los escribe el dueño de la fila, así
-     * que no hay carreras. el ciclo j es idéntico al secuencial: mismo orden
-     * de sumas, mismo resultado bit a bit */
+    /* Fase de fuerzas. Cada hilo toma filas i completas según el schedule de
+     * runtime (Mapping) y el chunk agrupa varias filas (Agglomeration).
+     * b solo se lee, y ax[i], ay[i] solo los escribe el dueño de la fila, así
+     * que no hay condiciones de carrera. El ciclo j es idéntico al secuencial:
+     * mismo orden de sumas y mismo resultado bit a bit. */
 #pragma omp for schedule(runtime)
     for (int i = 0; i < n; i++) {
-        double axi = 0.0, ayi = 0.0; /* privadas, se declaran dentro */
+        double axi = 0.0, ayi = 0.0; /* privadas: se declaran dentro del ciclo */
         for (int j = 0; j < n; j++) {
             if (j == i) continue;
             double dx = b[j].x - b[i].x;
@@ -228,19 +234,23 @@ static void step_direct(Body *b, double *ax, double *ay, int n) {
         ax[i] = axi;
         ay[i] = ayi;
     }
-    /* barrera implícita del for: nadie mueve cuerpos hasta tener todas las
-     * fuerzas, si no se mezclarían posiciones de dos pasos */
+    /* Barrera implícita del for: nadie mueve cuerpos hasta tener todas las
+     * fuerzas; si no, se mezclarían posiciones de dos pasos distintos. */
 
-    /* integración: costo igual por cuerpo, static es lo más barato */
+    /* Integración: el costo es igual por cuerpo, así que static es lo más barato */
 #pragma omp for schedule(static)
     for (int i = 0; i < n; i++)
         integrate_body(&b[i], ax[i], ay[i]);
-    /* otra barrera implícita: el siguiente paso ve todas las posiciones nuevas */
+    /* Otra barrera implícita: el siguiente paso ve todas las posiciones nuevas */
 }
 
 /*
- * versión C. acc_x/acc_y son nt filas de n: la fila t es solo del hilo t,
- * ahí suma +F sobre i y -F sobre j sin sincronizar nada. llegan en cero.
+ * Versión C. Al calcular cada par una sola vez, el hilo que procesa (i, j)
+ * también escribe en el acumulador de j, que otros hilos pueden estar
+ * actualizando a la vez: esa es la condición de carrera. Para evitarla,
+ * acc_x/acc_y tienen nt filas de n elementos y la fila t es exclusiva del
+ * hilo t: ahí suma +F sobre i y -F sobre j sin sincronizar nada. Los
+ * acumuladores llegan en cero.
  */
 static void step_pairs_private(Body *b, double *acc_x, double *acc_y, int n) {
     int nt = omp_get_num_threads();
@@ -248,7 +258,7 @@ static void step_pairs_private(Body *b, double *acc_x, double *acc_y, int n) {
     double *my_ax = acc_x + row;
     double *my_ay = acc_y + row;
 
-    /* la fila i hace n-1-i pares (carga triangular), aquí el schedule pesa */
+    /* La fila i procesa n-1-i pares (carga triangular): aquí el schedule pesa */
 #pragma omp for schedule(runtime)
     for (int i = 0; i < n - 1; i++) {
         double axi = 0.0, ayi = 0.0;
@@ -259,17 +269,18 @@ static void step_pairs_private(Body *b, double *acc_x, double *acc_y, int n) {
             double s = pair_factor(dx, dy);
             axi += b[j].mass * s * dx;
             ayi += b[j].mass * s * dy;
-            my_ax[j] -= mi * s * dx; /* fila propia, nadie más la toca */
+            my_ax[j] -= mi * s * dx; /* fila propia: ningún otro hilo la toca */
             my_ay[j] -= mi * s * dy;
         }
         my_ax[i] += axi;
         my_ay[i] += ayi;
     }
-    /* barrera implícita: todas las copias ya están completas */
+    /* Barrera implícita: todas las copias privadas ya están completas */
 
-    /* reducción + integración en un solo ciclo: el cuerpo i es de un solo
-     * hilo, que suma la columna i de las nt copias, la deja en cero para el
-     * siguiente paso y mueve el cuerpo. costo O(nt*n), nada frente a O(n^2) */
+    /* Reducción e integración en un solo ciclo: el cuerpo i pertenece a un
+     * solo hilo, que suma la columna i de las nt copias, la deja en cero para
+     * el siguiente paso y mueve el cuerpo. Cuesta O(nt*n), despreciable
+     * frente a O(n^2). */
 #pragma omp for schedule(static)
     for (int i = 0; i < n; i++) {
         double axi = 0.0, ayi = 0.0;
@@ -282,13 +293,14 @@ static void step_pairs_private(Body *b, double *acc_x, double *acc_y, int n) {
         }
         integrate_body(&b[i], axi, ayi);
     }
-    /* barrera implícita antes del siguiente paso */
+    /* Barrera implícita antes del siguiente paso */
 }
 
 /*
- * misma idea que C pero con un solo ax/ay compartido y omp atomic en cada
- * suma. correcto, pero son millones de atomics por paso: es el punto de
- * comparación contra los acumuladores privados. ax/ay llegan en cero.
+ * Misma idea que C, pero con un solo ax/ay compartido y omp atomic en cada
+ * suma. Es correcto, pero son cientos de millones de operaciones atómicas por
+ * paso: sirve como punto de comparación contra los acumuladores privados.
+ * ax/ay llegan en cero.
  */
 static void step_pairs_atomic(Body *b, double *ax, double *ay, int n) {
 #pragma omp for schedule(runtime)
@@ -301,39 +313,40 @@ static void step_pairs_atomic(Body *b, double *ax, double *ay, int n) {
             double s = pair_factor(dx, dy);
             axi += b[j].mass * s * dx;
             ayi += b[j].mass * s * dy;
-            /* otro hilo puede estar sumando al mismo j: leer-sumar-escribir atómico */
+            /* Otro hilo puede estar sumando al mismo j: leer-sumar-escribir atómico */
 #pragma omp atomic
             ax[j] -= mi * s * dx;
 #pragma omp atomic
             ay[j] -= mi * s * dy;
         }
-        /* ax[i] también lo tocan las filas anteriores, va atómico */
+        /* ax[i] también lo actualizan las filas anteriores, así que va atómico */
 #pragma omp atomic
         ax[i] += axi;
 #pragma omp atomic
         ay[i] += ayi;
     }
-    /* barrera implícita: todas las sumas atómicas terminaron */
+    /* Barrera implícita: todas las sumas atómicas terminaron */
 
 #pragma omp for schedule(static)
     for (int i = 0; i < n; i++) {
         integrate_body(&b[i], ax[i], ay[i]);
-        ax[i] = 0.0; /* queda limpio para el siguiente paso */
+        ax[i] = 0.0; /* queda en cero para el siguiente paso */
         ay[i] = 0.0;
     }
 }
 
 /*
- * una sola región paralela para todos los pasos, así los hilos se crean una
- * vez y no en cada paso. el ciclo de pasos NO se reparte: cada hilo lo
- * recorre completo y se coordinan con las barreras de los omp for (el paso
- * t+1 necesita todas las posiciones del paso t). devuelve los hilos usados.
+ * Una sola región paralela para todos los pasos: los hilos se crean una vez y
+ * no en cada paso. El ciclo de pasos NO se reparte (el paso t+1 necesita todas
+ * las posiciones del paso t): cada hilo lo recorre completo y se coordinan con
+ * las barreras implícitas de los omp for. default(none) obliga a declarar qué
+ * es compartido. Devuelve el número de hilos usados.
  */
 static int simulate(const Config *cfg, Body *b, double *acc_x, double *acc_y) {
     int used = 0;
 #pragma omp parallel default(none) shared(cfg, b, acc_x, acc_y, used)
     {
-        /* el número real del equipo, no el pedido */
+        /* El número real de hilos del equipo, no el pedido */
 #pragma omp single nowait
         used = omp_get_num_threads();
 
@@ -355,7 +368,7 @@ static int simulate(const Config *cfg, Body *b, double *acc_x, double *acc_y) {
 }
 
 int main(int argc, char **argv) {
-    /* se lee antes de omp_set_num_threads para reportar el hardware tal cual */
+    /* Se lee antes de omp_set_num_threads para reportar el hardware tal cual */
     int max_threads = omp_get_max_threads();
 
     Config cfg = {DEFAULT_N, DEFAULT_STEPS, MODE_PARALLEL, max_threads, 0, 0, NULL};
@@ -366,11 +379,12 @@ int main(int argc, char **argv) {
     }
 
     omp_set_num_threads(cfg.threads);
-    /* esto es lo que lee schedule(runtime); chunk 0 = default de la implementación */
+    /* Esto es lo que lee schedule(runtime); chunk 0 = valor por defecto */
     omp_set_schedule(SCHED_KINDS[cfg.sched], cfg.chunk);
 
-    /* optimized necesita una fila de acumuladores por hilo, los otros solo una.
-     * calloc porque los step_* esperan los acumuladores en cero */
+    /* optimized necesita una fila de acumuladores por hilo; los otros modos,
+     * solo una. Se usa calloc porque los step_* esperan los acumuladores en
+     * cero. */
     size_t rows = cfg.mode == MODE_OPTIMIZED ? (size_t)cfg.threads : 1;
     Body *bodies = malloc((size_t)cfg.n * sizeof(Body));
     double *acc_x = calloc(rows * (size_t)cfg.n, sizeof(double));

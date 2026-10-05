@@ -3,7 +3,7 @@
 #      make clean
 # Cambiar nombres en la salida: make STUDENT="Nombre Apellido"
 
-STUDENT ?= Nicolas Concua, Diego, Esteban
+STUDENT ?= Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
 
 UNAME := $(shell uname -s)
 

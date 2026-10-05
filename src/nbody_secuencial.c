@@ -2,6 +2,8 @@
  * nbody_secuencial.c
  * Versión A: simulación gravitacional N-Body 2D secuencial (baseline).
  *
+ * Integrantes: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
+ *
  * Doble ciclo completo i x j: cada cuerpo acumula la aceleración causada
  * por todos los demás. Sirve como referencia de corrección y de tiempo
  * para las versiones paralelas.
@@ -20,7 +22,7 @@
 #include <string.h>
 
 #ifndef STUDENT
-#define STUDENT "Nicolas Concua"
+#define STUDENT "Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)"
 #endif
 
 #define SEED 42
