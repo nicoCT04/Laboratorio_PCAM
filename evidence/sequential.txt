@@ -1,11 +1,14 @@
-$ ./bin/nbody_secuencial 20000 10
-Student: Nicolas Concua, Diego, Esteban
+
+Laboratorio_PCAM main  ❯ ./bin/nbody_secuencial 20000 10
+Student: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
 Executable: ./bin/nbody_secuencial
 Mode: sequential
 N: 20000 | Steps: 10 | Seed: 42
 Threads requested: 1 | Threads used: 1
 Schedule: none | Chunk: -
-Elapsed: 9.383 s
+Elapsed: 8.697 s
 Checksum: 21071.127819
 Processors reported by OpenMP: 32
 Max threads reported by OpenMP: 32
+
+Laboratorio_PCAM main  ❯ 

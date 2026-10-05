@@ -1,11 +1,15 @@
-$ make clean && make
+
+Laboratorio_PCAM main  ❯ make clean && make
 rm -rf bin
 mkdir -p bin
-cc -O2 -std=c11 -Wall -Wextra -DSTUDENT="\"Nicolas Concua, Diego, Esteban\"" -fopenmp src/compare_states.c -o bin/compare_states -fopenmp -lm
-cc -O2 -std=c11 -Wall -Wextra -DSTUDENT="\"Nicolas Concua, Diego, Esteban\"" -fopenmp src/nbody_paralelo.c -o bin/nbody_paralelo -fopenmp -lm
-cc -O2 -std=c11 -Wall -Wextra -DSTUDENT="\"Nicolas Concua, Diego, Esteban\"" -fopenmp src/nbody_secuencial.c -o bin/nbody_secuencial -fopenmp -lm
-$ ls -l bin/
-total 64
--rwxr-xr-x 1 escu escu 16648 oct  4 22:57 compare_states
--rwxr-xr-x 1 escu escu 21912 oct  4 22:57 nbody_paralelo
--rwxr-xr-x 1 escu escu 16776 oct  4 22:57 nbody_secuencial
+cc -O2 -std=c11 -Wall -Wextra -DSTUDENT="\"Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)\"" -fopenmp src/compare_states.c -o bin/compare_states -fopenmp -lm
+cc -O2 -std=c11 -Wall -Wextra -DSTUDENT="\"Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)\"" -fopenmp src/nbody_paralelo.c -o bin/nbody_paralelo -fopenmp -lm
+cc -O2 -std=c11 -Wall -Wextra -DSTUDENT="\"Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)\"" -fopenmp src/nbody_secuencial.c -o bin/nbody_secuencial -fopenmp -lm
+
+Laboratorio_PCAM main  ❯ ls -l bin/
+Permissions Size User Date Modified Name
+.rwxr-xr-x   17k escu  4 oct 23:38  󰡯 compare_states
+.rwxr-xr-x   22k escu  4 oct 23:38  󰡯 nbody_paralelo
+.rwxr-xr-x   17k escu  4 oct 23:38  󰡯 nbody_secuencial
+
+Laboratorio_PCAM main  ❯ 

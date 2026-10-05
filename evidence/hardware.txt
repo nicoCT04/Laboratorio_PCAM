@@ -1,9 +1,13 @@
-$ LC_ALL=C lscpu | grep -E '^(Model name|CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket):'
+
+Laboratorio_PCAM main  ❯ LC_ALL=C lscpu | grep -E '^(Model name|CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket):'
 CPU(s):                                  32
 Model name:                              13th Gen Intel(R) Core(TM) i9-13980HX
 Thread(s) per core:                      2
 Core(s) per socket:                      24
-$ ./bin/nbody_paralelo 20000 1 --mode parallel --threads 8 | grep -E 'Threads|Processors|Max threads'
+
+Laboratorio_PCAM main  ❯ ./bin/nbody_paralelo 20000 1 --mode parallel --threads 8 | grep -E 'Threads|Processors|Max threads'
 Threads requested: 8 | Threads used: 8
 Processors reported by OpenMP: 32
 Max threads reported by OpenMP: 32
+
+Laboratorio_PCAM main  ❯ 

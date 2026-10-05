@@ -1,35 +1,35 @@
 ### run 1
-Student: Nicolas Concua, Diego, Esteban
+Student: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
 Executable: ./bin/nbody_paralelo
 Mode: parallel
 N: 20000 | Steps: 10 | Seed: 42
 Threads requested: 8 | Threads used: 8
 Schedule: static | Chunk: 8
-Elapsed: 1.770 s
+Elapsed: 1.645 s
 Checksum: 21071.127819
 Processors reported by OpenMP: 32
 Max threads reported by OpenMP: 32
 
 ### run 2
-Student: Nicolas Concua, Diego, Esteban
+Student: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
 Executable: ./bin/nbody_paralelo
 Mode: parallel
 N: 20000 | Steps: 10 | Seed: 42
 Threads requested: 8 | Threads used: 8
 Schedule: static | Chunk: 8
-Elapsed: 1.786 s
+Elapsed: 1.683 s
 Checksum: 21071.127819
 Processors reported by OpenMP: 32
 Max threads reported by OpenMP: 32
 
 ### run 3
-Student: Nicolas Concua, Diego, Esteban
+Student: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
 Executable: ./bin/nbody_paralelo
 Mode: parallel
 N: 20000 | Steps: 10 | Seed: 42
 Threads requested: 8 | Threads used: 8
 Schedule: static | Chunk: 8
-Elapsed: 1.812 s
+Elapsed: 1.656 s
 Checksum: 21071.127819
 Processors reported by OpenMP: 32
 Max threads reported by OpenMP: 32
