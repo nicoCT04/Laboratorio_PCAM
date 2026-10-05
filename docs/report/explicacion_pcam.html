@@ -11,7 +11,8 @@
 <div class="subtitle">Simulación gravitacional N-Body en 2D · Computación Paralela y Distribuida · UVG</div>
 
 <table class="meta">
-  <tr><td>Integrantes</td><td>Nicolás Concua · Diego · Esteban Cárcamo</td></tr>
+  <tr><td>Integrantes</td><td>Nicolas Concuá (23197) · Esteban Cárcamo (23016) · Diego López (23747)</td></tr>
+  <tr><td>Modalidad</td><td>Grupal (3 integrantes)</td></tr>
   <tr><td>Lenguaje</td><td>C11 + OpenMP (<code>gcc -O2 -std=c11 -fopenmp</code>)</td></tr>
   <tr><td>Fecha</td><td>4 de octubre de 2026</td></tr>
 </table>
@@ -22,8 +23,8 @@ cuerpos (gravedad con <i>softening</i> <code>EPS2 = 1e-4</code>) y luego se inte
 (<code>DT = 1e-3</code>). Las tres versiones parten de las mismas condiciones iniciales: semilla 42 y un generador
 LCG propio, idéntico en macOS y Linux.</p>
 <p><b>Tamaño elegido: N = 20 000 cuerpos y 10 pasos</b>, iguales en todas las comparaciones. Con el N sugerido
-(5 000) la secuencial tarda 0,6 s en este equipo, muy poco para medir speedup sin ruido; con 20 000 tarda 9,36 s.
-Cada configuración se ejecutó 3 veces y se reporta el promedio (<code>results.csv</code>). El tiempo se mide con
+(5 000) la secuencial tarda 0,6 s en este equipo, muy poco para medir speedup sin ruido; con 20 000 tarda 8,38 s.
+Cada configuración se ejecutó 3 veces y se reporta el promedio (<code>results.csv</code>), con el portátil conectado y en perfil de energía <i>performance</i>. El tiempo se mide con
 <code>omp_get_wtime()</code> y solo cubre la simulación, no la inicialización.</p>
 <p><b>Hardware:</b> Intel Core i9-13980HX con 24 núcleos (8 de rendimiento con <i>hyper-threading</i> y 16 de
 eficiencia), es decir, 32 hilos lógicos (<code>omp_get_num_procs() = 32</code>). Esta arquitectura híbrida pesa
@@ -83,13 +84,13 @@ contribución. Con N = 20 000 son unas 4·10<sup>8</sup> actualizaciones por pas
   <thead><tr><th>Estrategia</th><th>Resultado</th></tr></thead>
   <tbody>
     <tr><td><code>critical</code></td><td>Serializaría las 4·10<sup>8</sup> actualizaciones de cada paso: quedaría por debajo de la secuencial. Se descartó en el diseño y no se implementó.</td></tr>
-    <tr><td><code>atomic</code> (<code>--mode atomic</code>)</td><td>Correcta, pero son 4·10<sup>9</sup> operaciones atómicas en total, con contención por líneas de caché: <b>9,26 s</b> (static) y <b>15,10 s</b> (dynamic 64) con 8 hilos, igual o peor que la secuencial.</td></tr>
-    <tr><td><b>Acumuladores privados por hilo</b> (elegida)</td><td>Cada hilo escribe en su propia fila de <code>acc_x/acc_y</code> sin sincronizar. Después de la barrera, el dueño de cada cuerpo suma las T copias, las pone a cero e integra en el mismo ciclo. Cuesta O(T·N) frente a O(N²): <b>0,958 s</b> con 8 hilos.</td></tr>
+    <tr><td><code>atomic</code> (<code>--mode atomic</code>)</td><td>Correcta, pero son 4·10<sup>9</sup> operaciones atómicas en total, con contención por líneas de caché: <b>8,39 s</b> (static) y <b>15,45 s</b> (dynamic 64) con 8 hilos, igual o peor que la secuencial.</td></tr>
+    <tr><td><b>Acumuladores privados por hilo</b> (elegida)</td><td>Cada hilo escribe en su propia fila de <code>acc_x/acc_y</code> sin sincronizar. Después de la barrera, el dueño de cada cuerpo suma las T copias, las pone a cero e integra en el mismo ciclo. Cuesta O(T·N) frente a O(N²): <b>0,862 s</b> con 8 hilos.</td></tr>
   </tbody>
 </table>
 
 <h2>4. Resultados</h2>
-<p>T₁ = 9,362 s (versión A secuencial). S(p) = T₁ / T<sub>p</sub> y E(p) = S(p) / p, ambos contra la
+<p>T₁ = 8,379 s (versión A secuencial). S(p) = T₁ / T<sub>p</sub> y E(p) = S(p) / p, ambos contra la
 secuencial. Tabla obligatoria con B y C:</p>
 {{table_required}}
 <p>Las tres configuraciones de chunk por schedule con 8 hilos (incluye <i>dynamic default</i>, <i>guided 8</i> y
@@ -110,53 +111,53 @@ hardware están en <code>docs/evidencia.pdf</code> y en <code>evidence/</code>.<
 <p><span class="q">1.</span> La unidad mínima es una interacción (i, j), de unas 20 operaciones. Como tarea
 individual habría 4·10<sup>8</sup> repartos por paso, y el costo de asignarlas superaría al cálculo. Aglomerarlas
 por fila deja tareas de 20 000 interacciones. Con eso, incluso <i>dynamic</i> con chunk 1 (el <i>default</i> de
-libgomp) solo hace 2·10<sup>5</sup> repartos en total: <i>dynamic default</i> (0,958 s) y <i>dynamic 64</i>
-(0,965 s) quedan dentro del ruido.</p>
+libgomp) solo hace 2·10<sup>5</sup> repartos en total: en C, <i>dynamic default</i> (0,862 s) y <i>dynamic 64</i>
+(0,877 s) quedan dentro del ruido.</p>
 <p><span class="q">2.</span> Se comparten las posiciones y masas (solo lectura en la fase de fuerzas), el arreglo
 de cuerpos (escritura en la integración, pero cada cuerpo lo escribe solo su dueño y las fases están separadas
 por barreras) y los acumuladores. En B, <code>ax[i]</code> lo escribe un único hilo. En C, <code>ax[j]</code>
 recibe escrituras de muchos hilos y es lo único que necesita protección; se resolvió con copias privadas por
 hilo.</p>
-<p><span class="q">3.</span> En B el chunk casi no influye (de 1,667 a 1,800 s, un 8 % entre el mejor y el peor): la carga es
+<p><span class="q">3.</span> En B el chunk casi no influye (de 1,533 a 1,661 s, un 8 % entre el mejor y el peor): la carga es
 uniforme y las filas ya son tareas grandes. En C es decisivo con <i>static</i>: el bloque <i>default</i> le da al
-primer hilo las filas más caras (1,475 s), y con chunk 8 o 64 el reparto pasa a ser cíclico y equilibra el
-triángulo (1,061 y 1,089 s). Chunks pequeños dan más balanceo; ninguno de los probados añadió un overhead que se
+primer hilo las filas más caras (1,346 s), y con chunk 8 o 64 el reparto pasa a ser cíclico y equilibra el
+triángulo (1,024 y 1,012 s). Chunks pequeños dan más balanceo; ninguno de los probados añadió un overhead que se
 note, porque cada fila ya agrupa miles de interacciones.</p>
-<p><span class="q">4.</span> <b>dynamic</b> fue el mejor en las dos versiones: 1,667 s en B y 0,958 s en C. En C,
-<i>static default</i> y <i>guided</i> quedan casi iguales (1,475 y 1,485 s) porque el primer bloque de
-<i>guided</i> también es de unas N/T filas y contiene las más caras. La cota teórica del desbalance de
+<p><span class="q">4.</span> <b>dynamic</b> fue el mejor en las dos versiones: 1,533 s en B (chunk 8) y 0,862 s en C (chunk
+<i>default</i>). En C, <i>static default</i> y <i>guided</i> quedan en el mismo rango (1,346 y 1,450 s), muy lejos de
+<i>dynamic</i>, porque el primer bloque de <i>guided</i> también es de unas N/T filas y contiene las más caras. La cota teórica del desbalance de
 <i>static</i> en C (el primer bloque concentra 1−(1−1/p)² del trabajo) da speedups máximos de 1,33, 2,29 y 4,27
-para 2, 4 y 8 hilos, frente a 1,34, 2,23 y 3,73 medidos respecto a C con un hilo. Que coincidan confirma que el
-cuello de botella es el balanceo. En B, aunque la carga es uniforme, <i>dynamic</i> le gana a <i>static</i> por un
-3 %: los núcleos son heterogéneos (P y E) y el reparto dinámico compensa a los hilos que caen en núcleos lentos.</p>
+para 2, 4 y 8 hilos, frente a 1,41, 2,23 y 3,79 medidos respecto a C con un hilo (con 2 hilos la supera un poco por
+la variación del turbo entre corridas). Que queden tan cerca confirma que el cuello de botella es el balanceo. En B,
+aunque la carga es uniforme, <i>dynamic</i> le gana a <i>static</i> por un 5 %: los núcleos son heterogéneos (P y E) y el reparto dinámico compensa a los hilos que caen en núcleos lentos.</p>
 <p><span class="q">5.</span> Al procesar cada par una sola vez, dos hilos pueden actualizar a la vez
 <code>ax[j]</code> del mismo <i>j</i> (y <code>ax[i]</code>, que también reciben las filas anteriores). Se
 resolvió con acumuladores privados por hilo y una reducción posterior sin sincronización (sección 3).</p>
-<p><span class="q">6.</span> No. C hace la mitad de interacciones, pero con un hilo es 1,70× más rápida, no 2×,
+<p><span class="q">6.</span> No. C hace la mitad de interacciones, pero con un hilo es 1,64× más rápida, no 2×,
 porque cada par escribe en memoria (<code>my_ax[j]</code>) en lugar de acumular solo en registros. La variante
-atomic, con el mismo número de operaciones, fue la más lenta de todas (9,26–15,10 s) por el costo y la contención
+atomic, con el mismo número de operaciones, fue la más lenta de todas (8,39–15,45 s) por el costo y la contención
 de las operaciones atómicas. Con <i>dynamic 64</i> fue peor que con <i>static</i>: los hilos procesan filas
 vecinas al mismo tiempo, recorren los mismos <i>j</i> y se disputan las mismas líneas de caché. Menos operaciones
 solo se traduce en menos tiempo si la sincronización y el desbalance que introduce la optimización no se comen la
 ganancia.</p>
-<p><span class="q">7.</span> Con static default, B da S/E = 1,89/0,94, 3,08/0,77 y 5,43/0,68 para 2, 4 y 8 hilos, y
-C da 2,29/1,14, 3,80/0,95 y 6,35/0,79 (C supera E = 1 porque se compara contra una secuencial que hace el doble de
-trabajo; respecto a sí misma, con <i>dynamic</i> logra 5,74× con 8 hilos). B deja de escalar linealmente a partir
-de 4 hilos: el turbo baja cuando hay más núcleos activos, y las barreras y el reparto pesan más. Pasados 8 hilos se
-agotan los núcleos de rendimiento: con 16 hilos E cae a 0,40 y con 32, a 0,26.</p>
+<p><span class="q">7.</span> Con static default, B da S/E = 1,89/0,94, 3,34/0,84 y 5,19/0,65 para 2, 4 y 8 hilos, y
+C da 2,32/1,16, 3,66/0,91 y 6,23/0,78 (C supera E = 1 porque se compara contra una secuencial que hace el doble de
+trabajo; respecto a sí misma, con <i>dynamic</i> logra 5,92× con 8 hilos). B deja de escalar linealmente a partir
+de 4 hilos y la caída se acentúa en 8: el turbo baja cuando hay más núcleos activos, y las barreras y el reparto
+pesan más. Pasados 8 hilos se agotan los núcleos de rendimiento: con 16 hilos E cae a 0,38 y con 32, a 0,25.</p>
 <p><span class="q">8.</span> No. Con la métrica de Karp-Flatt, el speedup de B con 8 hilos implica una fracción no
-paralelizable efectiva de ≈ 6,7 %. Según Amdahl, con 64 núcleos el speedup sería ≈ 12,2: 2,2 veces el de 8 hilos,
-no 8 veces. Las mediciones ya lo muestran: pasar de 8 a 32 hilos solo dio 1,53× en B y 1,79× en C. En una máquina
+paralelizable efectiva de ≈ 7,7 %. Según Amdahl, con 64 núcleos el speedup sería ≈ 10,9: 2,1 veces el de 8 hilos,
+no 8 veces. Las mediciones ya lo muestran: pasar de 8 a 32 hilos solo dio 1,53× en B y 1,74× en C. En una máquina
 de 64 núcleos homogéneos, además, cada hilo recibiría solo unas 312 filas con N = 20 000, y las dos barreras por
 paso pesarían más. Para aprovecharlos habría que crecer el problema (Gustafson), no solo los núcleos.</p>
 
 <h2>6. Conclusiones</h2>
 <ul>
   <li>La partición por filas es correcta y suficiente para B: sin sincronización explícita, el resultado es
-  idéntico bit a bit a la secuencial y llega a 5,62× con 8 hilos (dynamic).</li>
+  idéntico bit a bit a la secuencial y llega a 5,47× con 8 hilos (dynamic).</li>
   <li>Explotar la simetría reduce el trabajo a la mitad, pero introduce una race condition y una carga triangular.
   Los acumuladores privados resuelven la primera sin costo apreciable. El mapping (<i>dynamic</i> o <i>static</i>
-  con chunk pequeño) resuelve la segunda: C pasa de 1,475 a 0,958 s, 1,74× más rápida que la mejor B.</li>
+  con chunk pequeño) resuelve la segunda: C pasa de 1,346 a 0,862 s, 1,78× más rápida que la mejor B.</li>
   <li>La sincronización fina sale cara: <code>atomic</code> hace que la versión con menos operaciones sea más lenta
   que la secuencial.</li>
   <li>La escalabilidad la limitan el desbalance, la fracción serial efectiva y el hardware híbrido. Con más núcleos

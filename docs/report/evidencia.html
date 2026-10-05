@@ -8,17 +8,21 @@
 <body>
 
 <h1>Evidencia de ejecución</h1>
-<div class="subtitle">Laboratorio PCAM + OpenMP · Simulación N-Body 2D · Nicolás Concua · Diego · Esteban Cárcamo</div>
+<div class="subtitle">Laboratorio PCAM + OpenMP · Simulación N-Body 2D · Nicolas Concuá (23197) · Esteban Cárcamo (23016) · Diego López (23747)</div>
 
-<p>Todas las capturas son de la terminal del mismo equipo en el que se generó <code>results.csv</code>. La salida
-completa de cada captura está en <code>evidence/*.txt</code>, y la de cada corrida de los experimentos, en
-<code>results/raw/</code>. Parámetros constantes: <b>N = 20 000, 10 pasos, semilla 42</b>.</p>
+<p>Capturas de pantalla reales de la terminal (alacritty) del mismo equipo en el que se generó
+<code>results.csv</code>. El texto de cada captura está también en <code>evidence/*.txt</code>, y la salida de cada
+corrida de los experimentos, en <code>results/raw/</code>. Parámetros constantes: <b>N = 20 000, 10 pasos,
+semilla 42</b>. Las capturas se tomaron justo después de los experimentos, en las mismas condiciones (conectado, perfil
+<i>performance</i>). En este portátil una ejecución suelta puede variar hasta un ±10 % respecto al promedio de 3
+corridas por el turbo y el reparto entre núcleos P y E; por eso los tiempos de la tabla son promedios y cada corrida
+individual está en <code>results/raw/</code>. Configuración y checksum coinciden exactamente.</p>
 
 <h2>Entorno</h2>
 {{environment}}
 
 <h2>Evidencia 1 · Compilación exitosa</h2>
-<figure class="evidence"><img src="{{root}}/evidence/compile.png"><figcaption><code>make clean &amp;&amp; make</code> compila las tres herramientas con <code>-Wall -Wextra</code> sin errores ni advertencias.</figcaption></figure>
+<figure class="evidence"><img src="{{root}}/evidence/compile.png"><figcaption><code>make clean &amp;&amp; make</code> compila las tres herramientas con <code>-Wall -Wextra</code> sin errores ni advertencias; <code>ls</code> muestra los ejecutables.</figcaption></figure>
 
 <h2>Evidencia 2 · Ejecución secuencial (A)</h2>
 <figure class="evidence"><img src="{{root}}/evidence/sequential.png"><figcaption>N, pasos, tiempo y checksum de la versión base.</figcaption></figure>
@@ -47,7 +51,7 @@ E = S / p.</p>
 {{table_scaling}}
 
 <h2>Comparaciones de rendimiento</h2>
-<figure><img src="{{root}}/results/parallel_vs_optimized.png" style="max-width:82%"><figcaption>Directa (B) frente a pares (C): con 8 threads y dynamic, C es 1,74× más rápida que la mejor B; la variante atomic es más lenta que la secuencial.</figcaption></figure>
+<figure><img src="{{root}}/results/parallel_vs_optimized.png" style="max-width:82%"><figcaption>Directa (B) frente a pares (C): con 8 threads y dynamic, C es 1,78× más rápida que la mejor B; la variante atomic es más lenta que la secuencial.</figcaption></figure>
 <figure><img src="{{root}}/results/schedules_8_threads.png"><figcaption>En B el schedule casi no importa (carga uniforme); en C, static default y guided sufren el desbalance triangular.</figcaption></figure>
 <figure><img src="{{root}}/results/speedup_vs_threads.png" style="max-width:82%"><figcaption>Speedup frente a threads. A partir de 8 se agotan los núcleos de rendimiento del i9-13980HX.</figcaption></figure>
 

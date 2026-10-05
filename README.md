@@ -24,8 +24,7 @@ Laboratorio_PCAM/
 │   ├── check_correctness.sh  # Compara cada versión contra la secuencial
 │   ├── run_experiments.sh    # Corre todas las configuraciones -> results.csv
 │   ├── analyze.py            # Gráficas de speedup y schedules
-│   ├── capture_evidence.sh   # Ejecuta y genera las capturas de evidence/
-│   ├── render_evidence.py    # Convierte la salida de terminal en PNG
+│   ├── capture_evidence.sh   # Capturas reales de terminal (Hyprland + tmux + grim)
 │   └── build_reports.py      # Genera los PDFs desde docs/report/
 ├── evidence/                 # Capturas de compilación y ejecución
 ├── results/                  # Salidas crudas, hardware y gráficas
@@ -67,7 +66,7 @@ gcc -O2 -std=c11 -fopenmp src/nbody_secuencial.c -o bin/nbody_secuencial -lm
 Salida de ejemplo:
 
 ```
-Student: Nicolas Concua, Diego, Esteban
+Student: Nicolas Concuá (23197), Esteban Cárcamo (23016), Diego López (23747)
 Executable: ./bin/nbody_secuencial
 Mode: sequential
 N: 5000 | Steps: 10 | Seed: 42
@@ -101,7 +100,7 @@ que parten exactamente de los mismos cuerpos en cualquier máquina.
 ```bash
 ./scripts/run_experiments.sh 20000 10 3   # N, pasos, corridas por configuración
 python3 scripts/analyze.py                # gráficas en results/*.png
-./scripts/capture_evidence.sh 20000 10 8  # capturas en evidence/
+./scripts/capture_evidence.sh 20000 10 8  # capturas reales en evidence/ (Hyprland)
 python3 scripts/build_reports.py          # docs/explicacion_pcam.pdf y docs/evidencia.pdf
 ```
 
@@ -138,6 +137,6 @@ en un i9-13980HX; con N = 5000 tardaba 0.6 s y el speedup salía ruidoso).
 
 | Integrante | Parte |
 |------------|-------|
-| Nicolás | Diseño PCAM, estructura, versión secuencial, validación |
-| Diego | Versiones paralelas B y C |
-| Esteban | Experimentos, resultados, evidencia e informe |
+| Nicolas Concuá (23197) | Diseño PCAM, estructura, versión secuencial, validación |
+| Diego López (23747) | Versiones paralelas B y C |
+| Esteban Cárcamo (23016) | Experimentos, resultados, evidencia e informe |
