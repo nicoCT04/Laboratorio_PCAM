@@ -1,0 +1,18 @@
+$ ./scripts/check_correctness.sh 20000 10 8
+== Secuencial (referencia) ==
+Mode: sequential
+Checksum: 21071.127819
+
+== parallel (8 threads) ==
+Mode: parallel
+Checksum: 21071.127819
+Bodies compared: 20000
+Max abs diff: 0.000e+00 (body 0, x)
+Tolerance: 1.0e-09 -> OK
+
+== optimized (8 threads) ==
+Mode: parallel-optimized
+Checksum: 21071.127819
+Bodies compared: 20000
+Max abs diff: 1.197e-16 (body 5057, vy)
+Tolerance: 1.0e-09 -> OK
