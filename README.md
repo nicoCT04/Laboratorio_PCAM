@@ -12,15 +12,24 @@ El diseño completo (Partition, Communication, Agglomeration, Mapping) está en
 ```
 Laboratorio_PCAM/
 ├── docs/
-│   └── diseno_pcam.md        # Diseño PCAM (base de explicacion_pcam.pdf)
+│   ├── diseno_pcam.md        # Diseño PCAM (base de explicacion_pcam.pdf)
+│   ├── report/               # Fuentes HTML de los PDFs
+│   ├── explicacion_pcam.pdf  # Informe PCAM (3-5 páginas)
+│   └── evidencia.pdf         # Capturas y tablas de rendimiento
 ├── src/
 │   ├── nbody_secuencial.c    # Versión A: secuencial, baseline
 │   ├── nbody_paralelo.c      # Versiones B (directa) y C (pares) con OpenMP
 │   └── compare_states.c      # Diferencia máxima entre estados finales
 ├── scripts/
-│   └── check_correctness.sh  # Compara cada versión contra la secuencial
+│   ├── check_correctness.sh  # Compara cada versión contra la secuencial
+│   ├── run_experiments.sh    # Corre todas las configuraciones -> results.csv
+│   ├── analyze.py            # Gráficas de speedup y schedules
+│   ├── capture_evidence.sh   # Ejecuta y genera las capturas de evidence/
+│   ├── render_evidence.py    # Convierte la salida de terminal en PNG
+│   └── build_reports.py      # Genera los PDFs desde docs/report/
 ├── evidence/                 # Capturas de compilación y ejecución
-├── results/                  # results.csv y estados finales
+├── results/                  # Salidas crudas, hardware y gráficas
+├── results.csv               # Tiempos promedio, speedup y efficiency
 └── Makefile
 ```
 
@@ -86,6 +95,44 @@ que parten exactamente de los mismos cuerpos en cualquier máquina.
 ```
 
 `compare_states` reporta la diferencia máxima absoluta en `x, y, vx, vy`.
+
+## Experimentos
+
+```bash
+./scripts/run_experiments.sh 20000 10 3   # N, pasos, corridas por configuración
+python3 scripts/analyze.py                # gráficas en results/*.png
+./scripts/capture_evidence.sh 20000 10 8  # capturas en evidence/
+python3 scripts/build_reports.py          # docs/explicacion_pcam.pdf y docs/evidencia.pdf
+```
+
+- `run_experiments.sh` corre cada configuración 3 veces para `parallel` y
+  `optimized` (las 9 obligatorias, `dynamic default` y `guided 8`/`64` para
+  tener 3 chunks por schedule, 1 thread y, como puntos extra, 16 y 32 threads
+  con `EXTRA_THREADS`), más `atomic` con 8 threads. Genera `results.csv`, la
+  salida completa de cada corrida en `results/raw/` y el hardware en
+  `results/environment.txt`.
+- `speedup = T_secuencial / T_promedio` y `efficiency = speedup / threads`.
+- Los informes se generan desde `docs/report/*.html` con Chromium headless;
+  las tablas se llenan directamente desde `results.csv`.
+
+**Tamaño usado: N = 20000, 10 pasos, seed 42** (la secuencial tarda ~9.4 s
+en un i9-13980HX; con N = 5000 tardaba 0.6 s y el speedup salía ruidoso).
+
+| Versión (8 threads) | Mejor schedule | Tiempo | Speedup |
+|---------------------|----------------|--------|---------|
+| A secuencial        | —              | 9.362 s | 1.00 |
+| B directa           | dynamic default | 1.667 s | 5.62 |
+| C pares (privados)  | dynamic default | 0.958 s | 9.77 |
+| C pares (atomic)    | static default  | 9.261 s | 1.01 |
+
+## Entregables
+
+| Archivo | Contenido |
+|---------|-----------|
+| `results.csv` | Tiempos de las 3 corridas, promedio, speedup, efficiency y checksum |
+| `evidence/*.png` | Compilación, secuencial, paralela, optimizada, hardware y corrección |
+| `docs/explicacion_pcam.pdf` | Diseño PCAM, estrategia OpenMP, race conditions, resultados y preguntas |
+| `docs/evidencia.pdf` | Capturas, tablas de tiempos y comparaciones de rendimiento |
 
 ## Integrantes
 

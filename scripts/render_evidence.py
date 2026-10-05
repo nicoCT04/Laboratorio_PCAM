@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import textwrap
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -12,6 +13,7 @@ FONT_CANDIDATES = [
     "/System/Library/Fonts/Menlo.ttc",
 ]
 FONT_SIZE = 22
+COLUMNS = 110
 LINE_GAP = 8
 PADDING = 28
 TITLE_BAR = 44
@@ -43,13 +45,27 @@ def line_color(line):
     return TEXT
 
 
+def wrap_lines(lines, prompt):
+    wrapped = []
+    for line in lines:
+        is_command = line.startswith("$ ")
+        first_width = COLUMNS - len(prompt) if is_command else COLUMNS
+        body = line[2:] if is_command else line
+        pieces = textwrap.wrap(body, first_width, break_long_words=True, drop_whitespace=False) or [""]
+        head, rest = pieces[0], "".join(pieces[1:])
+        wrapped.append(("$ " + head) if is_command else head)
+        for chunk in textwrap.wrap(rest, COLUMNS - 2, break_long_words=True):
+            wrapped.append("\0" + chunk if is_command else "  " + chunk)
+    return wrapped
+
+
 def render(text_path, png_path, title, prompt):
-    lines = Path(text_path).read_text().rstrip("\n").expandtabs(4).splitlines()
+    raw = Path(text_path).read_text().rstrip("\n").expandtabs(4).splitlines()
+    lines = wrap_lines(raw, prompt)
     font = load_font()
     char_width = font.getlength("M")
     line_height = FONT_SIZE + LINE_GAP
-    longest = max(len(prompt) + len(line) for line in lines)
-    width = int(max(longest * char_width, 900) + PADDING * 2)
+    width = int(COLUMNS * char_width + PADDING * 2)
     height = TITLE_BAR + PADDING * 2 + line_height * len(lines)
 
     image = Image.new("RGB", (width, height), BACKGROUND)
@@ -64,6 +80,10 @@ def render(text_path, png_path, title, prompt):
 
     y = TITLE_BAR + PADDING
     for line in lines:
+        if line.startswith("\0"):
+            draw.text((PADDING, y), line[1:], font=font, fill=COMMAND)
+            y += line_height
+            continue
         color = line_color(line)
         if color is None:
             draw.text((PADDING, y), prompt, font=font, fill=PROMPT)

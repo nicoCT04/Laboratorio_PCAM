@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Explicación PCAM</title>
+<link rel="stylesheet" href="{{root}}/docs/report/style.css">
+</head>
+<body>
+
+<h1>PCAM aplicado con OpenMP</h1>
+<div class="subtitle">Simulación gravitacional N-Body en 2D · Computación Paralela y Distribuida · UVG</div>
+
+<table class="meta">
+  <tr><td>Integrantes</td><td>Nicolás Concua · Diego · Esteban Cárcamo</td></tr>
+  <tr><td>Lenguaje</td><td>C11 + OpenMP (<code>gcc -O2 -std=c11 -fopenmp</code>)</td></tr>
+  <tr><td>Fecha</td><td>4 de octubre de 2026</td></tr>
+</table>
+
+<h2>1. Problema y configuración experimental</h2>
+<p>Cada cuerpo tiene posición, velocidad y masa. En cada paso se acumula la aceleración que producen los demás
+cuerpos (gravedad con <i>softening</i> <code>EPS2 = 1e-4</code>) y luego se integra con Euler semiimplícito
+(<code>DT = 1e-3</code>). Las tres versiones parten de las mismas condiciones iniciales: semilla 42 y un generador
+LCG propio, idéntico en macOS y Linux.</p>
+<p><b>Tamaño elegido: N = 20 000 cuerpos y 10 pasos</b>, iguales en todas las comparaciones. Con el N sugerido
+(5 000) la secuencial tarda 0,6 s en este equipo, muy poco para medir speedup sin ruido; con 20 000 tarda 9,36 s.
+Cada configuración se ejecutó 3 veces y se reporta el promedio (<code>results.csv</code>). El tiempo se mide con
+<code>omp_get_wtime()</code> y solo cubre la simulación, no la inicialización.</p>
+<p><b>Hardware:</b> Intel Core i9-13980HX con 24 núcleos (8 de rendimiento con <i>hyper-threading</i> y 16 de
+eficiencia), es decir, 32 hilos lógicos (<code>omp_get_num_procs() = 32</code>). Esta arquitectura híbrida pesa
+en el análisis de escalabilidad.</p>
+
+<h2>2. Diseño PCAM</h2>
+<h3>P · Partición</h3>
+<p>Se descompone el dominio por cuerpos. La unidad mínima es <b>una interacción (i, j)</b>: la contribución de
+<i>j</i> a la aceleración de <i>i</i>. Hay N(N−1) ≈ 4·10<sup>8</sup> interacciones por paso. En la versión B la
+tarea es la fila <i>i</i> completa: lee todas las posiciones y solo escribe <code>ax[i], ay[i]</code>. En la C la
+tarea es el par (i, j) con i &lt; j, que por la tercera ley de Newton suma +F sobre <i>i</i> y −F sobre <i>j</i>:
+hay la mitad de interacciones, pero cada una escribe en dos acumuladores. La integración es una tarea por cuerpo,
+totalmente independiente.</p>
+<p><b>Dependencias.</b> El paso <i>t+1</i> necesita todas las posiciones del paso <i>t</i>, así que el ciclo de
+pasos es secuencial. Dentro de un paso, la fase de fuerzas debe terminar completa antes de integrar; si no, se
+mezclarían posiciones de dos instantes. Por eso hay dos ciclos y una barrera entre ellos.</p>
+
+<h3>C · Comunicación</h3>
+<p>En memoria compartida, comunicar es leer y escribir datos compartidos:</p>
+<table>
+  <thead><tr><th>Dato</th><th>Fase de fuerzas</th><th>Integración</th><th>Riesgo</th></tr></thead>
+  <tbody>
+    <tr><td><code>b[].x, y, mass</code></td><td>Solo lectura, todos los hilos</td><td>Escribe solo el dueño de <i>i</i></td><td>Ninguno: hay una barrera entre las dos fases</td></tr>
+    <tr><td><code>ax[i], ay[i]</code> (B)</td><td>Escribe solo el dueño de la fila</td><td>Lee el dueño</td><td>Ninguno</td></tr>
+    <tr><td><code>ax[j], ay[j]</code> (C)</td><td><b>Varios hilos escriben el mismo j</b></td><td>Lectura</td><td><b>Race condition</b></td></tr>
+    <tr><td><code>dx, dy, r2, axi…</code></td><td>Privadas (se declaran dentro del ciclo)</td><td>—</td><td>Ninguno</td></tr>
+  </tbody>
+</table>
+<p>Hay dos puntos de sincronización por paso, que son las barreras implícitas de cada <code>omp for</code>. En la C
+se añade la combinación (reducción) de los acumuladores de cada hilo.</p>
+
+<h3>A · Aglomeración</h3>
+<p>Una interacción cuesta unas 20 operaciones de punto flotante: tratarla como tarea haría que el reparto
+dominara. Se aglomera en dos niveles: (1) todas las interacciones de un cuerpo forman una fila que se recorre
+secuencialmente y acumula en registros (<code>axi, ayi</code>); (2) varias filas forman un <i>chunk</i> de OpenMP.
+Se compararon tres tamaños de chunk (<i>default</i>, 8 y 64) con cada schedule (sección 4).</p>
+
+<h3>M · Asignación (mapping)</h3>
+<p>Las filas se reparten con <code>#pragma omp for schedule(runtime)</code>; el schedule y el chunk llegan por
+línea de comandos y se aplican con <code>omp_set_schedule()</code>, así que se mide sin recompilar. En B cada fila
+cuesta lo mismo (N−1 interacciones). En C la fila <i>i</i> cuesta N−1−i: la carga es <b>triangular</b>. La
+integración tiene un costo uniforme y usa <code>schedule(static)</code>.</p>
+
+<h2>3. Estrategia OpenMP y race conditions</h2>
+<ul>
+  <li><b>Una sola región paralela</b> para toda la simulación: los hilos se crean una vez. Cada hilo recorre el
+  ciclo de pasos completo y se coordinan con las barreras implícitas de los dos <code>omp for</code> de cada paso.</li>
+  <li><code>default(none)</code> obliga a declarar el ámbito: los cuerpos y los acumuladores son
+  <code>shared</code>, y los temporales se declaran dentro del ciclo, así que son privados.</li>
+  <li><code>omp single nowait</code> registra <code>omp_get_num_threads()</code>: el programa reporta los hilos que
+  se usaron realmente, no solo los pedidos.</li>
+</ul>
+<p><b>Race condition de la versión C.</b> Si el hilo A procesa el par (3, 7) y el hilo B el (5, 7) a la vez, los dos
+ejecutan <code>ax[7] -= …</code>. Es una secuencia leer-sumar-escribir: si se intercalan, se pierde una
+contribución. Con N = 20 000 son unas 4·10<sup>8</sup> actualizaciones por paso. Se evaluaron tres estrategias:</p>
+<table>
+  <thead><tr><th>Estrategia</th><th>Resultado</th></tr></thead>
+  <tbody>
+    <tr><td><code>critical</code></td><td>Serializaría las 4·10<sup>8</sup> actualizaciones de cada paso: quedaría por debajo de la secuencial. Se descartó en el diseño y no se implementó.</td></tr>
+    <tr><td><code>atomic</code> (<code>--mode atomic</code>)</td><td>Correcta, pero son 4·10<sup>9</sup> operaciones atómicas en total, con contención por líneas de caché: <b>9,26 s</b> (static) y <b>15,10 s</b> (dynamic 64) con 8 hilos, igual o peor que la secuencial.</td></tr>
+    <tr><td><b>Acumuladores privados por hilo</b> (elegida)</td><td>Cada hilo escribe en su propia fila de <code>acc_x/acc_y</code> sin sincronizar. Después de la barrera, el dueño de cada cuerpo suma las T copias, las pone a cero e integra en el mismo ciclo. Cuesta O(T·N) frente a O(N²): <b>0,958 s</b> con 8 hilos.</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Resultados</h2>
+<p>T₁ = 9,362 s (versión A secuencial). S(p) = T₁ / T<sub>p</sub> y E(p) = S(p) / p, ambos contra la
+secuencial. Tabla obligatoria con B y C:</p>
+{{table_required}}
+<p>Las tres configuraciones de chunk por schedule con 8 hilos (incluye <i>dynamic default</i>, <i>guided 8</i> y
+<i>guided 64</i>, que se añadieron para Aglomeración):</p>
+{{table_schedules}}
+<div class="two">
+  <figure><img src="{{root}}/results/speedup_vs_threads.png"><figcaption>Speedup con static default; 16 y 32 hilos son puntos extra.</figcaption></figure>
+  <figure><img src="{{root}}/results/parallel_vs_optimized.png"><figcaption>B frente a C (acumuladores privados y atomic).</figcaption></figure>
+</div>
+
+<p><b>Corrección numérica.</b> Todas las corridas dan el checksum <code>21071.127819</code>. Contra el estado final
+de la secuencial, la diferencia máxima de B es <b>0</b> (idéntica bit a bit, porque suma en el mismo orden) y la
+de C es <b>1,2·10<sup>−16</sup></b> (cuerpo 5057, <i>vy</i>). Esa diferencia sale de que en C cambia el orden de
+las sumas de punto flotante; es redondeo y no una divergencia física. Las capturas de compilación, ejecución y
+hardware están en <code>docs/evidencia.pdf</code> y en <code>evidence/</code>.</p>
+
+<h2>5. Preguntas de análisis</h2>
+<p><span class="q">1.</span> La unidad mínima es una interacción (i, j), de unas 20 operaciones. Como tarea
+individual habría 4·10<sup>8</sup> repartos por paso, y el costo de asignarlas superaría al cálculo. Aglomerarlas
+por fila deja tareas de 20 000 interacciones. Con eso, incluso <i>dynamic</i> con chunk 1 (el <i>default</i> de
+libgomp) solo hace 2·10<sup>5</sup> repartos en total: <i>dynamic default</i> (0,958 s) y <i>dynamic 64</i>
+(0,965 s) quedan dentro del ruido.</p>
+<p><span class="q">2.</span> Se comparten las posiciones y masas (solo lectura en la fase de fuerzas), el arreglo
+de cuerpos (escritura en la integración, pero cada cuerpo lo escribe solo su dueño y las fases están separadas
+por barreras) y los acumuladores. En B, <code>ax[i]</code> lo escribe un único hilo. En C, <code>ax[j]</code>
+recibe escrituras de muchos hilos y es lo único que necesita protección; se resolvió con copias privadas por
+hilo.</p>
+<p><span class="q">3.</span> En B el chunk casi no influye (de 1,667 a 1,800 s, un 8 % entre el mejor y el peor): la carga es
+uniforme y las filas ya son tareas grandes. En C es decisivo con <i>static</i>: el bloque <i>default</i> le da al
+primer hilo las filas más caras (1,475 s), y con chunk 8 o 64 el reparto pasa a ser cíclico y equilibra el
+triángulo (1,061 y 1,089 s). Chunks pequeños dan más balanceo; ninguno de los probados añadió un overhead que se
+note, porque cada fila ya agrupa miles de interacciones.</p>
+<p><span class="q">4.</span> <b>dynamic</b> fue el mejor en las dos versiones: 1,667 s en B y 0,958 s en C. En C,
+<i>static default</i> y <i>guided</i> quedan casi iguales (1,475 y 1,485 s) porque el primer bloque de
+<i>guided</i> también es de unas N/T filas y contiene las más caras. La cota teórica del desbalance de
+<i>static</i> en C (el primer bloque concentra 1−(1−1/p)² del trabajo) da speedups máximos de 1,33, 2,29 y 4,27
+para 2, 4 y 8 hilos, frente a 1,34, 2,23 y 3,73 medidos respecto a C con un hilo. Que coincidan confirma que el
+cuello de botella es el balanceo. En B, aunque la carga es uniforme, <i>dynamic</i> le gana a <i>static</i> por un
+3 %: los núcleos son heterogéneos (P y E) y el reparto dinámico compensa a los hilos que caen en núcleos lentos.</p>
+<p><span class="q">5.</span> Al procesar cada par una sola vez, dos hilos pueden actualizar a la vez
+<code>ax[j]</code> del mismo <i>j</i> (y <code>ax[i]</code>, que también reciben las filas anteriores). Se
+resolvió con acumuladores privados por hilo y una reducción posterior sin sincronización (sección 3).</p>
+<p><span class="q">6.</span> No. C hace la mitad de interacciones, pero con un hilo es 1,70× más rápida, no 2×,
+porque cada par escribe en memoria (<code>my_ax[j]</code>) en lugar de acumular solo en registros. La variante
+atomic, con el mismo número de operaciones, fue la más lenta de todas (9,26–15,10 s) por el costo y la contención
+de las operaciones atómicas. Con <i>dynamic 64</i> fue peor que con <i>static</i>: los hilos procesan filas
+vecinas al mismo tiempo, recorren los mismos <i>j</i> y se disputan las mismas líneas de caché. Menos operaciones
+solo se traduce en menos tiempo si la sincronización y el desbalance que introduce la optimización no se comen la
+ganancia.</p>
+<p><span class="q">7.</span> Con static default, B da S/E = 1,89/0,94, 3,08/0,77 y 5,43/0,68 para 2, 4 y 8 hilos, y
+C da 2,29/1,14, 3,80/0,95 y 6,35/0,79 (C supera E = 1 porque se compara contra una secuencial que hace el doble de
+trabajo; respecto a sí misma, con <i>dynamic</i> logra 5,74× con 8 hilos). B deja de escalar linealmente a partir
+de 4 hilos: el turbo baja cuando hay más núcleos activos, y las barreras y el reparto pesan más. Pasados 8 hilos se
+agotan los núcleos de rendimiento: con 16 hilos E cae a 0,40 y con 32, a 0,26.</p>
+<p><span class="q">8.</span> No. Con la métrica de Karp-Flatt, el speedup de B con 8 hilos implica una fracción no
+paralelizable efectiva de ≈ 6,7 %. Según Amdahl, con 64 núcleos el speedup sería ≈ 12,2: 2,2 veces el de 8 hilos,
+no 8 veces. Las mediciones ya lo muestran: pasar de 8 a 32 hilos solo dio 1,53× en B y 1,79× en C. En una máquina
+de 64 núcleos homogéneos, además, cada hilo recibiría solo unas 312 filas con N = 20 000, y las dos barreras por
+paso pesarían más. Para aprovecharlos habría que crecer el problema (Gustafson), no solo los núcleos.</p>
+
+<h2>6. Conclusiones</h2>
+<ul>
+  <li>La partición por filas es correcta y suficiente para B: sin sincronización explícita, el resultado es
+  idéntico bit a bit a la secuencial y llega a 5,62× con 8 hilos (dynamic).</li>
+  <li>Explotar la simetría reduce el trabajo a la mitad, pero introduce una race condition y una carga triangular.
+  Los acumuladores privados resuelven la primera sin costo apreciable. El mapping (<i>dynamic</i> o <i>static</i>
+  con chunk pequeño) resuelve la segunda: C pasa de 1,475 a 0,958 s, 1,74× más rápida que la mejor B.</li>
+  <li>La sincronización fina sale cara: <code>atomic</code> hace que la versión con menos operaciones sea más lenta
+  que la secuencial.</li>
+  <li>La escalabilidad la limitan el desbalance, la fracción serial efectiva y el hardware híbrido. Con más núcleos
+  no se espera un speedup proporcional con este N.</li>
+</ul>
+
+</body>
+</html>

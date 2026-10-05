@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Evidencia de ejecución</title>
+<link rel="stylesheet" href="{{root}}/docs/report/style.css">
+</head>
+<body>
+
+<h1>Evidencia de ejecución</h1>
+<div class="subtitle">Laboratorio PCAM + OpenMP · Simulación N-Body 2D · Nicolás Concua · Diego · Esteban Cárcamo</div>
+
+<p>Todas las capturas son de la terminal del mismo equipo en el que se generó <code>results.csv</code>. La salida
+completa de cada captura está en <code>evidence/*.txt</code>, y la de cada corrida de los experimentos, en
+<code>results/raw/</code>. Parámetros constantes: <b>N = 20 000, 10 pasos, semilla 42</b>.</p>
+
+<h2>Entorno</h2>
+{{environment}}
+
+<h2>Evidencia 1 · Compilación exitosa</h2>
+<figure class="evidence"><img src="{{root}}/evidence/compile.png"><figcaption><code>make clean &amp;&amp; make</code> compila las tres herramientas con <code>-Wall -Wextra</code> sin errores ni advertencias.</figcaption></figure>
+
+<h2>Evidencia 2 · Ejecución secuencial (A)</h2>
+<figure class="evidence"><img src="{{root}}/evidence/sequential.png"><figcaption>N, pasos, tiempo y checksum de la versión base.</figcaption></figure>
+
+<h2>Evidencia 3 · Ejecución paralela directa (B)</h2>
+<figure class="evidence"><img src="{{root}}/evidence/parallel.png"><figcaption>Threads pedidos y usados, schedule, chunk, tiempo y checksum.</figcaption></figure>
+
+<h2>Evidencia 4 · Ejecución optimizada por pares (C)</h2>
+<figure class="evidence"><img src="{{root}}/evidence/optimized.png"><figcaption>Simetría de pares con acumuladores privados por thread; mismo checksum que la secuencial.</figcaption></figure>
+
+<h2>Evidencia 5 · Resumen de hardware</h2>
+<figure class="evidence"><img src="{{root}}/evidence/hardware.png"><figcaption><code>omp_get_num_procs()</code> y <code>omp_get_max_threads()</code> impresos por el programa, junto con <code>lscpu</code>.</figcaption></figure>
+
+<h2>Corrección contra la secuencial</h2>
+<figure class="evidence"><img src="{{root}}/evidence/correctness.png"><figcaption>Diferencia máxima del estado final (x, y, vx, vy): 0 en B y 1,2·10<sup>−16</sup> en C, por el cambio de orden en las sumas de punto flotante.</figcaption></figure>
+
+<h2 class="page-break">Tiempos promedio, speedup y efficiency</h2>
+<p>Promedio de 3 corridas por configuración. S = T₁ / T<sub>p</sub> con T₁ = tiempo de la secuencial;
+E = S / p.</p>
+{{table_required}}
+
+<h3>Schedule y chunk con 8 threads</h3>
+{{table_schedules}}
+
+<h3>Escalabilidad (static default)</h3>
+{{table_scaling}}
+
+<h2>Comparaciones de rendimiento</h2>
+<figure><img src="{{root}}/results/parallel_vs_optimized.png" style="max-width:82%"><figcaption>Directa (B) frente a pares (C): con 8 threads y dynamic, C es 1,74× más rápida que la mejor B; la variante atomic es más lenta que la secuencial.</figcaption></figure>
+<figure><img src="{{root}}/results/schedules_8_threads.png"><figcaption>En B el schedule casi no importa (carga uniforme); en C, static default y guided sufren el desbalance triangular.</figcaption></figure>
+<figure><img src="{{root}}/results/speedup_vs_threads.png" style="max-width:82%"><figcaption>Speedup frente a threads. A partir de 8 se agotan los núcleos de rendimiento del i9-13980HX.</figcaption></figure>
+
+<h2 class="page-break">Anexo · results.csv completo</h2>
+{{table_full}}
+
+</body>
+</html>

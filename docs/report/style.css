@@ -1,0 +1,203 @@
+@page {
+  size: Letter;
+  margin: 1.7cm 1.8cm 1.8cm;
+  @bottom-center {
+    content: counter(page);
+  }
+}
+
+:root {
+  --ink: #1b1b1a;
+  --ink-soft: #4d4c48;
+  --accent: #23468f;
+  --rule: #d9d8d3;
+  --tint: #f2f4f8;
+  --note: #fff6e6;
+  --note-rule: #d08a1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: var(--ink);
+  font-family: "Noto Serif", "DejaVu Serif", Georgia, serif;
+  font-size: 10pt;
+  line-height: 1.42;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Noto Sans", "Open Sans", "DejaVu Sans", sans-serif;
+  color: var(--accent);
+  line-height: 1.2;
+  break-after: avoid;
+}
+
+h1 {
+  font-size: 19pt;
+  margin: 0 0 2pt;
+}
+
+h2 {
+  font-size: 12.5pt;
+  margin: 13pt 0 4pt;
+  padding-bottom: 2pt;
+  border-bottom: 1.2pt solid var(--accent);
+}
+
+h3 {
+  font-size: 10.5pt;
+  margin: 9pt 0 3pt;
+}
+
+p {
+  margin: 0 0 5pt;
+  text-align: justify;
+  hyphens: auto;
+}
+
+ul,
+ol {
+  margin: 0 0 5pt;
+  padding-left: 16pt;
+}
+
+li {
+  margin-bottom: 2pt;
+}
+
+.subtitle {
+  font-family: "Noto Sans", sans-serif;
+  color: var(--ink-soft);
+  font-size: 10pt;
+  margin-bottom: 8pt;
+}
+
+.meta {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4pt 0 6pt;
+  font-size: 9pt;
+}
+
+.meta td {
+  border-bottom: 0.6pt solid var(--rule);
+  padding: 2.5pt 6pt;
+}
+
+.meta td:first-child {
+  width: 22%;
+  font-family: "Noto Sans", sans-serif;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--tint);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4pt 0 7pt;
+  font-size: 8.6pt;
+  break-inside: avoid;
+}
+
+th {
+  background: var(--accent);
+  color: #ffffff;
+  font-family: "Noto Sans", sans-serif;
+  font-weight: 600;
+  text-align: left;
+  padding: 3pt 5pt;
+}
+
+td {
+  padding: 2.2pt 5pt;
+  border-bottom: 0.6pt solid var(--rule);
+  vertical-align: top;
+}
+
+table.num td {
+  font-variant-numeric: tabular-nums;
+}
+
+table.compact {
+  font-size: 7.4pt;
+}
+
+table.compact td,
+table.compact th {
+  padding: 1.6pt 3pt;
+}
+
+code,
+pre {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 8.4pt;
+}
+
+code {
+  background: var(--tint);
+  padding: 0 2pt;
+  border-radius: 2pt;
+}
+
+pre {
+  background: var(--tint);
+  border: 0.6pt solid var(--rule);
+  padding: 5pt 7pt;
+  margin: 3pt 0 7pt;
+  white-space: pre-wrap;
+  break-inside: avoid;
+}
+
+.note {
+  background: var(--note);
+  border-left: 3pt solid var(--note-rule);
+  padding: 4pt 8pt;
+  margin: 4pt 0 7pt;
+  break-inside: avoid;
+}
+
+figure {
+  margin: 5pt 0 8pt;
+  break-inside: avoid;
+  text-align: center;
+}
+
+figure img {
+  max-width: 100%;
+}
+
+figure.evidence img {
+  max-width: 100%;
+  border: 0.6pt solid var(--rule);
+}
+
+figcaption {
+  font-family: "Noto Sans", sans-serif;
+  font-size: 8.4pt;
+  color: var(--ink-soft);
+  margin-top: 2pt;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10pt;
+}
+
+.q {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.page-break {
+  break-before: page;
+}
