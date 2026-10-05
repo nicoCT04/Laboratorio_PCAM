@@ -44,12 +44,16 @@ def find(rows, version, threads, schedule, chunk):
     return None
 
 
+def decimal(value, digits):
+    return f"{float(value):.{digits}f}".replace(".", ",")
+
+
 def fmt_time(row):
-    return f"{float(row['avg_time']):.3f}" if row else "—"
+    return decimal(row["avg_time"], 3) if row else "—"
 
 
 def fmt_ratio(row):
-    return f"{float(row['speedup']):.2f} / {float(row['efficiency']):.2f}" if row else "—"
+    return f"{decimal(row['speedup'], 2)} / {decimal(row['efficiency'], 2)}" if row else "—"
 
 
 def table(headers, body, classes=""):
@@ -98,8 +102,8 @@ def full_table(rows):
     for r in rows:
         body.append([
             VERSION_LABELS.get(r["version"], r["version"]), r["threads"], r["schedule"], r["chunk"],
-            r["run1"], r["run2"], r["run3"], f"{float(r['avg_time']):.3f}",
-            f"{float(r['speedup']):.2f}", f"{float(r['efficiency']):.2f}", r["checksum"],
+            decimal(r["run1"], 3), decimal(r["run2"], 3), decimal(r["run3"], 3), decimal(r["avg_time"], 3),
+            decimal(r["speedup"], 2), decimal(r["efficiency"], 2), r["checksum"],
         ])
     headers = ["Versión", "T", "Schedule", "Chunk", "Run 1", "Run 2", "Run 3", "T̄ (s)", "S", "E",
                "Checksum"]

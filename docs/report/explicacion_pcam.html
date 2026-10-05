@@ -14,7 +14,7 @@
   <tr><td>Integrantes</td><td>Nicolas Concuá (23197) · Esteban Cárcamo (23016) · Diego López (23747)</td></tr>
   <tr><td>Modalidad</td><td>Grupal (3 integrantes)</td></tr>
   <tr><td>Lenguaje</td><td>C11 + OpenMP (<code>gcc -O2 -std=c11 -fopenmp</code>)</td></tr>
-  <tr><td>Fecha</td><td>4 de octubre de 2026</td></tr>
+  <tr><td>Fecha</td><td>5 de octubre de 2026</td></tr>
 </table>
 
 <h2>1. Problema y configuración experimental</h2>
@@ -96,10 +96,8 @@ secuencial. Tabla obligatoria con B y C:</p>
 <p>Las tres configuraciones de chunk por schedule con 8 hilos (incluye <i>dynamic default</i>, <i>guided 8</i> y
 <i>guided 64</i>, que se añadieron para Aglomeración):</p>
 {{table_schedules}}
-<div class="two">
-  <figure><img src="{{root}}/results/speedup_vs_threads.png"><figcaption>Speedup con static default; 16 y 32 hilos son puntos extra.</figcaption></figure>
-  <figure><img src="{{root}}/results/parallel_vs_optimized.png"><figcaption>B frente a C (acumuladores privados y atomic).</figcaption></figure>
-</div>
+<p>Las gráficas de speedup frente a hilos, tiempo por schedule y chunk, y la comparación de B frente a C y atomic
+están en <code>evidencia.pdf</code>, junto con la tabla de escalabilidad hasta 32 hilos.</p>
 
 <p><b>Corrección numérica.</b> Todas las corridas dan el checksum <code>21071.127819</code>. Contra el estado final
 de la secuencial, la diferencia máxima de B es <b>0</b> (idéntica bit a bit, porque suma en el mismo orden) y la
