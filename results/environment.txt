@@ -1,0 +1,11 @@
+date: 2026-10-04T22:50:44-06:00
+N: 20000 | Steps: 10 | Seed: 42 | Runs: 3
+host: Linux 7.2.6-1-cachyos x86_64
+CPU(s):                                  32
+Model name:                              13th Gen Intel(R) Core(TM) i9-13980HX
+Thread(s) per core:                      2
+Core(s) per socket:                      24
+Socket(s):                               1
+compiler: cc (GCC) 16.2.1 20260810
+Processors reported by OpenMP: 32
+Max threads reported by OpenMP: 32

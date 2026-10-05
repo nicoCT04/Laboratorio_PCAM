@@ -1,0 +1,36 @@
+### run 1
+Student: Nicolas Concua, Diego, Esteban
+Executable: ./bin/nbody_paralelo
+Mode: parallel-atomic
+N: 20000 | Steps: 10 | Seed: 42
+Threads requested: 8 | Threads used: 8
+Schedule: static | Chunk: default
+Elapsed: 9.626 s
+Checksum: 21071.127819
+Processors reported by OpenMP: 32
+Max threads reported by OpenMP: 32
+
+### run 2
+Student: Nicolas Concua, Diego, Esteban
+Executable: ./bin/nbody_paralelo
+Mode: parallel-atomic
+N: 20000 | Steps: 10 | Seed: 42
+Threads requested: 8 | Threads used: 8
+Schedule: static | Chunk: default
+Elapsed: 9.276 s
+Checksum: 21071.127819
+Processors reported by OpenMP: 32
+Max threads reported by OpenMP: 32
+
+### run 3
+Student: Nicolas Concua, Diego, Esteban
+Executable: ./bin/nbody_paralelo
+Mode: parallel-atomic
+N: 20000 | Steps: 10 | Seed: 42
+Threads requested: 8 | Threads used: 8
+Schedule: static | Chunk: default
+Elapsed: 8.881 s
+Checksum: 21071.127819
+Processors reported by OpenMP: 32
+Max threads reported by OpenMP: 32
+
